@@ -2,6 +2,13 @@
 <html>
 <head>
 <title>Test Page</title>
+<script type="text/javascript">
+  window.onload = function() {
+  	let element = document.createElement('video');
+  	let result = element.canPlayType("video/webm; codecs=vp9", "invalid-key-system");
+  	console.log("query done");
+  }
+</script>
 </head>
 <body>
 &npsp;
