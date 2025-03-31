@@ -60,6 +60,12 @@ const MEDIA_FILES = {
     contentType: 'audio/webm; codecs="opus"',
     url: 'https://storage.googleapis.com/ytlr-cert.appspot.com/test-materials/media/car_opus_med.webm',
   },
+
+  'vp9-1080p-60fps-7s_clear': {
+    contentType: 'video/webm; codecs="vp9"',
+    url: 'https://jasonzhangxx.github.io/test/big-buck-bunny-vp9-1080p-1mb.webm',
+    // maxVideoCapabilities: 'width=1280; height=720',
+  }
 };
 
 mediaCache = {}
@@ -215,10 +221,10 @@ function populateMediaFileIds() {
   var mediaFileIds = [];
   const getParameters = getGetParameters();
 
-  mediaFileIds['video0'] = getParameters['video0'] ?? 'vp9_720p_60fps_drm';
-  mediaFileIds['video1'] = getParameters['video1'] ?? 'h264_720p_24fps_drm';
-  mediaFileIds['video2'] = getParameters['video2'] ?? 'vp9_720p_60fps_drm';
-  mediaFileIds['video3'] = getParameters['video3'] ?? 'h264_720p_24fps_drm';
+  mediaFileIds['video0'] = getParameters['video0'] ?? 'vp9-1080p-60fps-7s_clear';
+  mediaFileIds['video1'] = getParameters['video1'] ?? 'vp9-1080p-60fps-7s_clear';
+  mediaFileIds['video2'] = getParameters['video2'] ?? 'vp9-1080p-60fps-7s_clear';
+  mediaFileIds['video3'] = getParameters['video3'] ?? 'vp9-1080p-60fps-7s_clear';
   mediaFileIds['audio'] = getParameters['audio'] ?? 'opus_clear';
 
   return mediaFileIds;
