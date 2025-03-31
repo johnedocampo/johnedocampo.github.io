@@ -247,13 +247,13 @@ async function main() {
   play('primary-video', mediaFileIds['video0'], mediaFileIds['audio']);
   window.setTimeout(function() {
     play('secondary-video-1', mediaFileIds['video1']);
-  }, 10000);
+  }, 1000);
   window.setTimeout(function() {
     play('secondary-video-2', mediaFileIds['video2']);
-  }, 20000);
+  }, 2000);
   window.setTimeout(function() {
     play('secondary-video-3', mediaFileIds['video3']);
-  }, 30000);
+  }, 3000);
 }
 
 
