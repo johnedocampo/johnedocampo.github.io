@@ -247,7 +247,7 @@ async function main() {
   const mediaFileIds = populateMediaFileIds();
   await prefetchMediaData(mediaFileIds);
 
-  play('primary-video', mediaFileIds['video0'], mediaFileIds['audio']);
+  // play('primary-video', mediaFileIds['video0'], mediaFileIds['audio']);
   window.setTimeout(function() {
     play('secondary-video-1', mediaFileIds['video1']);
   }, 10000);
