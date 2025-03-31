@@ -64,7 +64,7 @@ const MEDIA_FILES = {
   'vp9-1080p-60fps-7s_clear': {
     contentType: 'video/webm; codecs="vp9"',
     url: 'https://jasonzhangxx.github.io/test/big-buck-bunny-vp9-1080p-1mb.webm',
-    // maxVideoCapabilities: 'width=1280; height=720',
+    maxVideoCapabilities: 'width=1280; height=720',
   }
 };
 
@@ -140,34 +140,37 @@ function isTunnelModeSupported(videoContentType) {
 
 async function play(videoElementId, videoFileId, optionalAudioFileId) {
   const isPrimaryVideo = videoElementId == 'primary-video';
+  const isDrmVideo = !!MEDIA_FILES[videoFileId].licenseUrl;
 
   videoContentType = MEDIA_FILES[videoFileId].contentType;
   if (isTunnelModeSupported(videoContentType)) {
-    videoContentType = createTunnelModeContentType(videoContentType, 'true');
+  //   videoContentType = createTunnelModeContentType(videoContentType, 'true');
   }
-
-  var mediaKeys = await createMediaKeySystem(isPrimaryVideo, optionalAudioFileId ? MEDIA_FILES[optionalAudioFileId].contentType : MEDIA_FILES['opus_clear'].contentType, videoContentType);
+  
   var videoElement = document.getElementById(videoElementId);
 
   if (!isPrimaryVideo && videoElement.setMaxVideoCapabilities) {
     videoElement.setMaxVideoCapabilities(MEDIA_FILES[videoFileId].maxVideoCapabilities);
   }
 
-  videoElement.setMediaKeys(mediaKeys);
+  if(isDrmVideo) {
+    var mediaKeys = await createMediaKeySystem(isPrimaryVideo, optionalAudioFileId ? MEDIA_FILES[optionalAudioFileId].contentType : MEDIA_FILES['opus_clear'].contentType, videoContentType);
+    videoElement.setMediaKeys(mediaKeys);
 
-  mediaKeySession = mediaKeys.createSession();
-  var licenseServerUrl = MEDIA_FILES[videoFileId].licenseUrl;
-  mediaKeySession.addEventListener('message', function(messageEvent) {
-    fetchArrayBuffer('POST', licenseServerUrl, messageEvent.message,
-      function(licenseArrayBuffer) {
-        mediaKeySession.update(extractLicense(licenseArrayBuffer));
-      });
-  });
+    mediaKeySession = mediaKeys.createSession();
+    var licenseServerUrl = MEDIA_FILES[videoFileId].licenseUrl;
+    mediaKeySession.addEventListener('message', function(messageEvent) {
+      fetchArrayBuffer('POST', licenseServerUrl, messageEvent.message,
+        function(licenseArrayBuffer) {
+          mediaKeySession.update(extractLicense(licenseArrayBuffer));
+        });
+    });
 
-  videoElement.addEventListener('encrypted', function(encryptedEvent) {
-    mediaKeySession.generateRequest(
-        encryptedEvent.initDataType, encryptedEvent.initData);
-  });
+    videoElement.addEventListener('encrypted', function(encryptedEvent) {
+      mediaKeySession.generateRequest(
+          encryptedEvent.initDataType, encryptedEvent.initData);
+    });
+  }
 
   var mediaSource = new MediaSource();
   mediaSource.addEventListener('sourceopen', async function() {
