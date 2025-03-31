@@ -257,7 +257,7 @@ async function main() {
 //   window.setTimeout(function() {
 //     play('secondary-video-3', mediaFileIds['video3']);
 //   }, 30000);
-// }
+}
 
 
 main();
