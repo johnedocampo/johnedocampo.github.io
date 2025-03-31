@@ -144,7 +144,7 @@ async function play(videoElementId, videoFileId, optionalAudioFileId) {
 
   videoContentType = MEDIA_FILES[videoFileId].contentType;
   if (isTunnelModeSupported(videoContentType)) {
-  //   videoContentType = createTunnelModeContentType(videoContentType, 'true');
+    videoContentType = createTunnelModeContentType(videoContentType, 'true');
   }
   
   var videoElement = document.getElementById(videoElementId);
@@ -250,14 +250,14 @@ async function main() {
   play('primary-video', mediaFileIds['video0'], mediaFileIds['audio']);
   window.setTimeout(function() {
     play('secondary-video-1', mediaFileIds['video1']);
-  }, 1000);
-  window.setTimeout(function() {
-    play('secondary-video-2', mediaFileIds['video2']);
-  }, 2000);
-  window.setTimeout(function() {
-    play('secondary-video-3', mediaFileIds['video3']);
-  }, 3000);
-}
+  }, 10000);
+//   window.setTimeout(function() {
+//     play('secondary-video-2', mediaFileIds['video2']);
+//   }, 20000);
+//   window.setTimeout(function() {
+//     play('secondary-video-3', mediaFileIds['video3']);
+//   }, 30000);
+// }
 
 
 main();
