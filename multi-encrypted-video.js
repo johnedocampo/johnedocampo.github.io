@@ -65,7 +65,13 @@ const MEDIA_FILES = {
     contentType: 'video/webm; codecs="vp9"',
     url: 'https://jasonzhangxx.github.io/test/big-buck-bunny-vp9-1080p-1mb.webm',
     maxVideoCapabilities: 'width=1280; height=720',
-  }
+  },
+
+  'h264-240p-30fps' : {
+    contentType: 'video/mp4; codecs="avc1.640028"',
+    url: 'https://jasonzhangxx.github.io/test/test-materials_media_big-buck-bunny-h264-240p-30fps.mp4',
+    maxVideoCapabilities: 'width=320; height=240',
+  },
 };
 
 mediaCache = {}
@@ -224,10 +230,10 @@ function populateMediaFileIds() {
   var mediaFileIds = [];
   const getParameters = getGetParameters();
 
-  mediaFileIds['video0'] = getParameters['video0'] ?? 'vp9-1080p-60fps-7s_clear';
-  mediaFileIds['video1'] = getParameters['video1'] ?? 'vp9-1080p-60fps-7s_clear';
-  mediaFileIds['video2'] = getParameters['video2'] ?? 'vp9-1080p-60fps-7s_clear';
-  mediaFileIds['video3'] = getParameters['video3'] ?? 'vp9-1080p-60fps-7s_clear';
+  mediaFileIds['video0'] = getParameters['video0'] ?? 'h264-240p-30fps';
+  mediaFileIds['video1'] = getParameters['video1'] ?? 'h264-240p-30fps';
+  mediaFileIds['video2'] = getParameters['video2'] ?? 'h264-240p-30fps';
+  mediaFileIds['video3'] = getParameters['video3'] ?? 'h264-240p-30fps';
   mediaFileIds['audio'] = getParameters['audio'] ?? 'opus_clear';
 
   return mediaFileIds;
