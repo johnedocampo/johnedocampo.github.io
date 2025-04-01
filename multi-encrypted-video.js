@@ -230,7 +230,7 @@ function populateMediaFileIds() {
   var mediaFileIds = [];
   const getParameters = getGetParameters();
 
-  mediaFileIds['video0'] = getParameters['video0'] ?? 'h264-240p-30fps';
+  mediaFileIds['video0'] = getParameters['video0'] ?? 'vp9-1080p-60fps-7s_clear';
   mediaFileIds['video1'] = getParameters['video1'] ?? 'h264-240p-30fps';
   mediaFileIds['video2'] = getParameters['video2'] ?? 'h264-240p-30fps';
   mediaFileIds['video3'] = getParameters['video3'] ?? 'h264-240p-30fps';
