@@ -181,19 +181,22 @@ async function play(videoElementId, videoFileId, optionalAudioFileId) {
   var mediaSource = new MediaSource();
   mediaSource.addEventListener('sourceopen', async function() {
     var videoSourceBuffer = mediaSource.addSourceBuffer(videoContentType);
-    var audioSourceBuffer;
+    // var audioSourceBuffer;
 
-    if (optionalAudioFileId) {
-      audioSourceBuffer = mediaSource.addSourceBuffer(MEDIA_FILES[optionalAudioFileId].contentType);
-    }
+    // if (optionalAudioFileId) {
+    //   audioSourceBuffer = mediaSource.addSourceBuffer(MEDIA_FILES[optionalAudioFileId].contentType);
+    // }
+
+    // if (audioSourceBuffer) {
+    //   var audioArrayBuffer = await fetchMediaData(optionalAudioFileId);
+    //   audioSourceBuffer.appendBuffer(audioArrayBuffer);
+    // }
 
     var videoArrayBuffer = await fetchMediaData(videoFileId);
+    videoSourceBuffer.addEventListener("updateend", () => {
+      mediaSource.endOfStream();
+    });
     videoSourceBuffer.appendBuffer(videoArrayBuffer);
-
-    if (audioSourceBuffer) {
-      var audioArrayBuffer = await fetchMediaData(optionalAudioFileId);
-      audioSourceBuffer.appendBuffer(audioArrayBuffer);
-    }
   });
 
   videoElement.src = URL.createObjectURL(mediaSource);
