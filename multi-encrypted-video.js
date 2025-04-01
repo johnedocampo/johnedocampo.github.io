@@ -253,16 +253,16 @@ async function main() {
   const mediaFileIds = populateMediaFileIds();
   await prefetchMediaData(mediaFileIds);
 
-  // play('primary-video', mediaFileIds['video0'], mediaFileIds['audio']);
+  play('primary-video', mediaFileIds['video0'], mediaFileIds['audio']);
   window.setTimeout(function() {
     play('secondary-video-1', mediaFileIds['video1']);
-  }, 1000);
+  }, 2*1000);
   window.setTimeout(function() {
     play('secondary-video-2', mediaFileIds['video2']);
-  }, 2000);
+  }, 4*1000);
   window.setTimeout(function() {
     play('secondary-video-3', mediaFileIds['video3']);
-  }, 3000);
+  }, 6*1000);
 }
 
 
