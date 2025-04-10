@@ -61,9 +61,9 @@ const MEDIA_FILES = {
     url: 'https://storage.googleapis.com/ytlr-cert.appspot.com/test-materials/media/car_opus_med.webm',
   },
 
-  'vp9-1080p-60fps-7s_clear': {
-    contentType: 'video/webm; codecs="vp9"',
-    url: 'https://jasonzhangxx.github.io/test/big-buck-bunny-vp9-1080p-1mb.webm',
+  'vp9-720p-mp4': {
+    contentType: 'video/mp4; codecs="vp09.00.40.08"',
+    url: 'https://jasonzhangxx.github.io/test/test_vp9.mp4',
     maxVideoCapabilities: 'width=1280; height=720',
   },
 
@@ -238,10 +238,10 @@ function populateMediaFileIds() {
   var mediaFileIds = [];
   const getParameters = getGetParameters();
 
-  mediaFileIds['video0'] = getParameters['video0'] ?? 'av1-clear';
-  mediaFileIds['video1'] = getParameters['video1'] ?? 'av1-clear';
-  mediaFileIds['video2'] = getParameters['video2'] ?? 'av1-clear';
-  mediaFileIds['video3'] = getParameters['video3'] ?? 'av1-clear';
+  mediaFileIds['video0'] = getParameters['video0'] ?? 'vp9-720p-mp4';
+  mediaFileIds['video1'] = getParameters['video1'] ?? 'vp9-720p-mp4';
+  mediaFileIds['video2'] = getParameters['video2'] ?? 'vp9-720p-mp4';
+  mediaFileIds['video3'] = getParameters['video3'] ?? 'vp9-720p-mp4';
   mediaFileIds['audio'] = getParameters['audio'] ?? 'opus_clear';
 
   return mediaFileIds;
@@ -262,15 +262,15 @@ async function main() {
   await prefetchMediaData(mediaFileIds);
 
   play('primary-video', mediaFileIds['video0'], mediaFileIds['audio']);
-  window.setTimeout(function() {
-    play('secondary-video-1', mediaFileIds['video1']);
-  }, 2*1000);
-  window.setTimeout(function() {
-    play('secondary-video-2', mediaFileIds['video2']);
-  }, 4*1000);
-  window.setTimeout(function() {
-    play('secondary-video-3', mediaFileIds['video3']);
-  }, 6*1000);
+  // window.setTimeout(function() {
+  //   play('secondary-video-1', mediaFileIds['video1']);
+  // }, 2*1000);
+  // window.setTimeout(function() {
+  //   play('secondary-video-2', mediaFileIds['video2']);
+  // }, 4*1000);
+  // window.setTimeout(function() {
+  //   play('secondary-video-3', mediaFileIds['video3']);
+  // }, 6*1000);
 }
 
 
