@@ -189,7 +189,7 @@ async function play(videoElementId, videoFileId, optionalAudioFileId) {
 
   var mediaSource = new MediaSource();
   mediaSource.addEventListener('sourceopen', async function() {
-    var videoSourceBuffer = mediaSource.addSourceBuffer(videoContentType);
+    // var videoSourceBuffer = mediaSource.addSourceBuffer(videoContentType);
     var audioSourceBuffer;
 
     if (optionalAudioFileId) {
@@ -201,11 +201,11 @@ async function play(videoElementId, videoFileId, optionalAudioFileId) {
       audioSourceBuffer.appendBuffer(audioArrayBuffer);
     }
 
-    var videoArrayBuffer = await fetchMediaData(videoFileId);
+    // var videoArrayBuffer = await fetchMediaData(videoFileId);
     // videoSourceBuffer.addEventListener("updateend", () => {
     //   mediaSource.endOfStream();
     // });
-    videoSourceBuffer.appendBuffer(videoArrayBuffer);
+    // videoSourceBuffer.appendBuffer(videoArrayBuffer);
   });
 
   videoElement.src = URL.createObjectURL(mediaSource);
