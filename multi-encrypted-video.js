@@ -77,6 +77,10 @@ const MEDIA_FILES = {
     url: 'https://jasonzhangxx.github.io/test/test_av1.mp4',
     maxVideoCapabilities: 'width=1920; height=1080',
   },
+  'opus_mp4': {
+    contentType: 'audio/mp4; codecs="opus"',
+    url: 'https://jasonzhangxx.github.io/test/opus.mp4',
+  },
 };
 
 mediaCache = {}
@@ -186,21 +190,21 @@ async function play(videoElementId, videoFileId, optionalAudioFileId) {
   var mediaSource = new MediaSource();
   mediaSource.addEventListener('sourceopen', async function() {
     var videoSourceBuffer = mediaSource.addSourceBuffer(videoContentType);
-    // var audioSourceBuffer;
+    var audioSourceBuffer;
 
-    // if (optionalAudioFileId) {
-    //   audioSourceBuffer = mediaSource.addSourceBuffer(MEDIA_FILES[optionalAudioFileId].contentType);
-    // }
+    if (optionalAudioFileId) {
+      audioSourceBuffer = mediaSource.addSourceBuffer(MEDIA_FILES[optionalAudioFileId].contentType);
+    }
 
-    // if (audioSourceBuffer) {
-    //   var audioArrayBuffer = await fetchMediaData(optionalAudioFileId);
-    //   audioSourceBuffer.appendBuffer(audioArrayBuffer);
-    // }
+    if (audioSourceBuffer) {
+      var audioArrayBuffer = await fetchMediaData(optionalAudioFileId);
+      audioSourceBuffer.appendBuffer(audioArrayBuffer);
+    }
 
     var videoArrayBuffer = await fetchMediaData(videoFileId);
-    videoSourceBuffer.addEventListener("updateend", () => {
-      mediaSource.endOfStream();
-    });
+    // videoSourceBuffer.addEventListener("updateend", () => {
+    //   mediaSource.endOfStream();
+    // });
     videoSourceBuffer.appendBuffer(videoArrayBuffer);
   });
 
@@ -242,7 +246,7 @@ function populateMediaFileIds() {
   mediaFileIds['video1'] = getParameters['video1'] ?? 'vp9-720p-mp4';
   mediaFileIds['video2'] = getParameters['video2'] ?? 'vp9-720p-mp4';
   mediaFileIds['video3'] = getParameters['video3'] ?? 'vp9-720p-mp4';
-  mediaFileIds['audio'] = getParameters['audio'] ?? 'opus_clear';
+  mediaFileIds['audio'] = getParameters['audio'] ?? 'opus_mp4';
 
   return mediaFileIds;
 }
