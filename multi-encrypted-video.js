@@ -262,6 +262,7 @@ async function main() {
     h5vcc.settings.set('MediaSource.EnableAvoidCopyingArrayBuffer', 1);
   }
 
+  console.log("the script is running");
   const mediaFileIds = populateMediaFileIds();
   await prefetchMediaData(mediaFileIds);
 
