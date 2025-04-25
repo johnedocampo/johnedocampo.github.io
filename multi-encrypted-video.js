@@ -155,6 +155,8 @@ async function play(videoElementId, videoFileId, optionalAudioFileId) {
   
   var videoElement = document.getElementById(videoElementId);
 
+  videoElement.setMaxVideoCapabilities(MEDIA_FILES[videoFileId].maxVideoCapabilities);
+
   if (!isPrimaryVideo && videoElement.setMaxVideoCapabilities) {
     videoElement.setMaxVideoCapabilities(MEDIA_FILES[videoFileId].maxVideoCapabilities);
   }
