@@ -262,11 +262,11 @@ async function main() {
     h5vcc.settings.set('MediaSource.EnableAvoidCopyingArrayBuffer', 1);
   }
 
-  console.log("the script is running");
   const mediaFileIds = populateMediaFileIds();
   await prefetchMediaData(mediaFileIds);
 
   play('primary-video', mediaFileIds['video0'], mediaFileIds['audio']);
+  console.log("Playing the video");
   // window.setTimeout(function() {
   //   play('secondary-video-1', mediaFileIds['video1']);
   // }, 2*1000);
