@@ -61,9 +61,9 @@ const MEDIA_FILES = {
     url: 'https://storage.googleapis.com/ytlr-cert.appspot.com/test-materials/media/car_opus_med.webm',
   },
 
-  'vp9-720p-mp4': {
-    contentType: 'video/mp4; codecs="vp09.00.40.08"',
-    url: 'https://jasonzhangxx.github.io/test/test_vp9.mp4',
+  'vp9-1080p-60fps-7s_clear': {
+    contentType: 'video/webm; codecs="vp9"',
+    url: 'https://jasonzhangxx.github.io/test/big-buck-bunny-vp9-1080p-1mb.webm',
     maxVideoCapabilities: 'width=1280; height=720',
   },
 
@@ -71,15 +71,6 @@ const MEDIA_FILES = {
     contentType: 'video/mp4; codecs="avc1.640028"',
     url: 'https://jasonzhangxx.github.io/test/test-materials_media_big-buck-bunny-h264-240p-30fps.mp4',
     maxVideoCapabilities: 'width=320; height=240',
-  },
-  'av1-clear' : {
-    contentType: 'video/mp4; codecs="av01.0.08M.08 "',
-    url: 'https://jasonzhangxx.github.io/test/test_av1.mp4',
-    maxVideoCapabilities: 'width=1920; height=1080',
-  },
-  'opus_mp4': {
-    contentType: 'audio/mp4; codecs="opus"',
-    url: 'https://jasonzhangxx.github.io/test/opus.mp4',
   },
 };
 
@@ -189,23 +180,23 @@ async function play(videoElementId, videoFileId, optionalAudioFileId) {
 
   var mediaSource = new MediaSource();
   mediaSource.addEventListener('sourceopen', async function() {
-    // var videoSourceBuffer = mediaSource.addSourceBuffer(videoContentType);
-    var audioSourceBuffer;
+    var videoSourceBuffer = mediaSource.addSourceBuffer(videoContentType);
+    // var audioSourceBuffer;
 
-    if (optionalAudioFileId) {
-      audioSourceBuffer = mediaSource.addSourceBuffer(MEDIA_FILES[optionalAudioFileId].contentType);
-    }
+    // if (optionalAudioFileId) {
+    //   audioSourceBuffer = mediaSource.addSourceBuffer(MEDIA_FILES[optionalAudioFileId].contentType);
+    // }
 
-    if (audioSourceBuffer) {
-      var audioArrayBuffer = await fetchMediaData(optionalAudioFileId);
-      audioSourceBuffer.appendBuffer(audioArrayBuffer);
-    }
+    // if (audioSourceBuffer) {
+    //   var audioArrayBuffer = await fetchMediaData(optionalAudioFileId);
+    //   audioSourceBuffer.appendBuffer(audioArrayBuffer);
+    // }
 
-    // var videoArrayBuffer = await fetchMediaData(videoFileId);
-    // videoSourceBuffer.addEventListener("updateend", () => {
-    //   mediaSource.endOfStream();
-    // });
-    // videoSourceBuffer.appendBuffer(videoArrayBuffer);
+    var videoArrayBuffer = await fetchMediaData(videoFileId);
+    videoSourceBuffer.addEventListener("updateend", () => {
+      mediaSource.endOfStream();
+    });
+    videoSourceBuffer.appendBuffer(videoArrayBuffer);
   });
 
   videoElement.src = URL.createObjectURL(mediaSource);
@@ -242,11 +233,11 @@ function populateMediaFileIds() {
   var mediaFileIds = [];
   const getParameters = getGetParameters();
 
-  mediaFileIds['video0'] = getParameters['video0'] ?? 'vp9-720p-mp4';
-  mediaFileIds['video1'] = getParameters['video1'] ?? 'vp9-720p-mp4';
-  mediaFileIds['video2'] = getParameters['video2'] ?? 'vp9-720p-mp4';
-  mediaFileIds['video3'] = getParameters['video3'] ?? 'vp9-720p-mp4';
-  mediaFileIds['audio'] = getParameters['audio'] ?? 'opus_mp4';
+  mediaFileIds['video0'] = getParameters['video0'] ?? 'vp9-1080p-60fps-7s_clear';
+  mediaFileIds['video1'] = getParameters['video1'] ?? 'vp9-1080p-60fps-7s_clear';
+  mediaFileIds['video2'] = getParameters['video2'] ?? 'vp9-1080p-60fps-7s_clear';
+  mediaFileIds['video3'] = getParameters['video3'] ?? 'vp9-1080p-60fps-7s_clear';
+  mediaFileIds['audio'] = getParameters['audio'] ?? 'opus_clear';
 
   return mediaFileIds;
 }
@@ -266,16 +257,15 @@ async function main() {
   await prefetchMediaData(mediaFileIds);
 
   play('primary-video', mediaFileIds['video0'], mediaFileIds['audio']);
-  console.log("Playing the video");
-  // window.setTimeout(function() {
-  //   play('secondary-video-1', mediaFileIds['video1']);
-  // }, 2*1000);
-  // window.setTimeout(function() {
-  //   play('secondary-video-2', mediaFileIds['video2']);
-  // }, 4*1000);
-  // window.setTimeout(function() {
-  //   play('secondary-video-3', mediaFileIds['video3']);
-  // }, 6*1000);
+  window.setTimeout(function() {
+    play('secondary-video-1', mediaFileIds['video1']);
+  }, 2*1000);
+  window.setTimeout(function() {
+    play('secondary-video-2', mediaFileIds['video2']);
+  }, 4*1000);
+  window.setTimeout(function() {
+    play('secondary-video-3', mediaFileIds['video3']);
+  }, 6*1000);
 }
 
 
