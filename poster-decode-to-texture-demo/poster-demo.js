@@ -104,17 +104,19 @@ document.addEventListener('keydown', (e) => {
     if (document.activeElement === changePosterBtn) {
       changePosterBtn.click();
     } else if (document.activeElement === video) {
-      if (!mseInitialized) {
-        // First time playing: use MSE.
-        startMsePlayback();
-      } else {
-        // Subsequent times: just toggle play/pause.
-        if (video.paused) {
-          video.play();
-        } else {
-          video.pause();
-        }
-      }
+      video.click();
+    }
+  }
+});
+
+video.addEventListener('click', () => {
+  if (!mseInitialized) {
+    startMsePlayback();
+  } else {
+    if (video.paused) {
+      video.play();
+    } else {
+      video.pause();
     }
   }
 });
