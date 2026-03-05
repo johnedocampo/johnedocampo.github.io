@@ -32,12 +32,21 @@ document.addEventListener('keydown', (e) => {
         focusableElements.length;
     setFocus();
     e.preventDefault();
+    e.preventDefault();
   } else if (e.key === 'ArrowDown') {
     currentFocusIndex = (currentFocusIndex + 1) % focusableElements.length;
     setFocus();
     e.preventDefault();
-  } else if (e.key === 'Enter' && document.activeElement === changePosterBtn) {
-    changePosterBtn.click();
+  } else if (e.key === 'Enter') {
+    if (document.activeElement === changePosterBtn) {
+      changePosterBtn.click();
+    } else if (document.activeElement === video) {
+      if (video.paused) {
+        video.play();
+      } else {
+        video.pause();
+      }
+    }
     e.preventDefault();
   }
 });
