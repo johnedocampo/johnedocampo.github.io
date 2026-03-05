@@ -15,6 +15,43 @@
 const video = document.getElementById('video_player');
 const changePosterBtn = document.getElementById('changePosterBtn');
 
+const focusableElements = [video, changePosterBtn];
+let currentFocusIndex = 0;
+
+const setFocus = () => {
+  focusableElements[currentFocusIndex].focus();
+};
+
+window.addEventListener('load', () => {
+  setFocus();
+});
+
+document.addEventListener('keydown', (e) => {
+  // The video player handles the keydown events for its own purposes, such as
+  // seeking, volume control, and play/pause. We should not interfere with
+  // these events.
+  if (e.target === video) {
+    return;
+  }
+  let handled = false;
+  if (e.key === 'ArrowUp') {
+    currentFocusIndex = (currentFocusIndex - 1 + focusableElements.length) %
+        focusableElements.length;
+    setFocus();
+    handled = true;
+  } else if (e.key === 'ArrowDown') {
+    currentFocusIndex = (currentFocusIndex + 1) % focusableElements.length;
+    setFocus();
+    handled = true;
+  } else if (e.key === 'Enter' && document.activeElement === changePosterBtn) {
+    changePosterBtn.click();
+    handled = true;
+  }
+  if (handled) {
+    e.preventDefault();
+  }
+});
+
 const posters = [
   'sddefault.jpg',
   'sddefault_poster_1.jpg',
