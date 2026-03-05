@@ -27,12 +27,6 @@ window.addEventListener('load', () => {
 });
 
 document.addEventListener('keydown', (e) => {
-  // The video player handles the keydown events for its own purposes, such as
-  // seeking, volume control, and play/pause. We should not interfere with
-  // these events.
-  if (e.target === video) {
-    return;
-  }
   let handled = false;
   if (e.key === 'ArrowUp') {
     currentFocusIndex = (currentFocusIndex - 1 + focusableElements.length) %
@@ -47,7 +41,10 @@ document.addEventListener('keydown', (e) => {
     changePosterBtn.click();
     handled = true;
   }
-  if (handled) {
+  // The video player handles the keydown events for its own purposes, such as
+  // seeking, volume control, and play/pause. We should not interfere with
+  // these events.
+  if (handled && document.activeElement !== video) {
     e.preventDefault();
   }
 });
