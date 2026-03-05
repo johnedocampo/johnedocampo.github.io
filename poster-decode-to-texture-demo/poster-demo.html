@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<!--
+ | Copyright 2026 The Cobalt Authors. All Rights Reserved.
+ |
+ | Licensed under the Apache License, Version 2.0 (the "License");
+ | you may not use this file except in compliance with the License.
+ | You may obtain a copy of the License at
+ |
+ |     http://www.apache.org/licenses/LICENSE-2.0
+ |
+ | Unless required by applicable law or agreed to in writing, software
+ | distributed under the License is distributed on an "AS IS" BASIS,
+ | WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ | See the License for the specific language governing permissions and
+ | limitations under the License.
+ -->
+
+<html>
+  <head>
+    <title>HTMLMediaElement.poster Demo</title>
+    <style>
+        body {
+          margin: 0;
+        }
+
+        video {
+          width: 100%;
+          height: 100%;
+        }
+
+        #ui-layer {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          position: absolute;
+          top: 15%;
+          height: 85%;
+          width: 100%;
+          background-color: rgba(33, 33, 33, .75);
+          padding: 24px;
+          margin: auto;
+        }
+
+        .item {
+          width: 80%;
+          height: 80%;
+          display: inline-block;
+          margin: 24px;
+          vertical-align: middle;
+        }
+        button {
+          margin-top: 20px;
+          padding: 10px 20px;
+          font-size: 16px;
+        }
+    </style>
+  </head>
+  <body>
+    <div id="ui-layer">
+      <div class="item">
+        <video id="video_player" controls
+               poster="sddefault.jpg"
+               src="../big-buck-bunny-vp9-1080p-1mb.webm">
+        </video>
+      </div>
+      <button id="changePosterBtn">Change Poster</button>
+    </div>
+    <script src="poster-demo.js"></script>
+  </body>
+</html>
