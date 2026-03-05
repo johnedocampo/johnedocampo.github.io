@@ -18,32 +18,49 @@ const changePosterBtn = document.getElementById('changePosterBtn');
 const focusableElements = [video, changePosterBtn];
 let currentFocusIndex = 0;
 let videoData;
+let mseInitialized = false;
 
 const setFocus = () => {
   focusableElements[currentFocusIndex].focus();
 };
 
-const playVideo = () => {
+// This function sets up the MediaSource and starts playback.
+const startMsePlayback = () => {
   if (!videoData) {
     console.error('Video data has not been downloaded yet.');
     return;
   }
+  if (mseInitialized) {
+    console.log('MSE already initialized.');
+    return;
+  }
+  console.log('Initializing MediaSource playback...');
 
   const ms = new MediaSource();
   video.src = URL.createObjectURL(ms);
 
   ms.addEventListener('sourceopen', () => {
-    // NOTE: The codec string must be exact. You may need to adjust this
-    // based on the actual encoding of your media file.
+    console.log('MediaSource opened.');
+    // NOTE: The codec string must be exact.
     const videoBuffer = ms.addSourceBuffer('video/webm; codecs="vp9"');
 
     videoBuffer.addEventListener('updateend', () => {
+      console.log('Buffer update ended.');
       if (!videoBuffer.updating && ms.readyState === 'open') {
         ms.endOfStream();
       }
+      // The data is now in the buffer. We can safely play.
+      const playPromise = video.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(error => {
+          console.error('Video playback failed:', error);
+        });
+      }
     });
 
+    console.log('Appending buffer...');
     videoBuffer.appendBuffer(videoData);
+    mseInitialized = true;
   });
 };
 
@@ -69,40 +86,34 @@ const downloadMedia = (callback) => {
 
 window.addEventListener('load', () => {
   setFocus();
-  // Pre-download the video data so it's ready for playback.
   downloadMedia();
 });
 
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'ArrowUp') {
-    currentFocusIndex = (currentFocusIndex - 1 + focusableElements.length) %
-        focusableElements.length;
+  if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (e.key === 'ArrowUp') {
+      currentFocusIndex = (currentFocusIndex - 1 + focusableElements.length) %
+          focusableElements.length;
+    } else {
+      currentFocusIndex = (currentFocusIndex + 1) % focusableElements.length;
+    }
     setFocus();
-    e.preventDefault();
-    e.preventDefault();
-  } else if (e.key === 'ArrowDown') {
-    currentFocusIndex = (currentFocusIndex + 1) % focusableElements.length;
-    setFocus();
-    e.preventDefault();
   } else if (e.key === 'Enter') {
     e.preventDefault();
     if (document.activeElement === changePosterBtn) {
       changePosterBtn.click();
     } else if (document.activeElement === video) {
-      if (video.paused) {
-        // If the video hasn't started yet, its src will be empty.
-        // Use MSE to play it for the first time.
-        if (!video.src || video.src.startsWith('blob:')) {
-          playVideo();
-        }
-        const playPromise = video.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(error => {
-            console.error('Video playback failed:', error);
-          });
-        }
+      if (!mseInitialized) {
+        // First time playing: use MSE.
+        startMsePlayback();
       } else {
-        video.pause();
+        // Subsequent times: just toggle play/pause.
+        if (video.paused) {
+          video.play();
+        } else {
+          video.pause();
+        }
       }
     }
   }
@@ -136,8 +147,9 @@ video.addEventListener('pause', () => {
 
 video.addEventListener('ended', () => {
   console.log('Video ended, poster will be shown again.');
-  // Reset src to allow playing again from the start with MSE.
+  // Reset state to allow playing again from the start with MSE.
   video.src = '';
+  mseInitialized = false;
 });
 
 console.log(`Initial poster: ${video.poster}`);
