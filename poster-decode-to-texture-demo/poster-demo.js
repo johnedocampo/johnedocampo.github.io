@@ -99,7 +99,7 @@ document.addEventListener('keydown', (e) => {
       currentFocusIndex = (currentFocusIndex + 1) % focusableElements.length;
     }
     setFocus();
-  } else if (e.key === 'Enter') {
+  } else if (e.key === 'Enter' || e.keyCode === 13) {
     e.preventDefault();
     if (document.activeElement === changePosterBtn) {
       changePosterBtn.click();
@@ -115,6 +115,18 @@ document.addEventListener('keydown', (e) => {
           video.pause();
         }
       }
+    }
+  }
+});
+
+video.addEventListener('click', () => {
+  if (!mseInitialized) {
+    startMsePlayback();
+  } else {
+    if (video.paused) {
+      video.play();
+    } else {
+      video.pause();
     }
   }
 });
