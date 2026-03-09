@@ -14,74 +14,28 @@
 
 document.addEventListener('DOMContentLoaded', () => {
   const video = document.getElementById('videoPlayer');
-  const changePosterBtn = document.getElementById('changePosterButton');
 
-  // Array of available poster images
-  const posters = [
-    'sddefault.jpg',
-    'sddefault_poster_1.jpg',
-    'sddefault_poster_2.jpg'
-  ];
-  let currentPosterIndex = 0;
+  video.src = 'vp9-720p.webm';
 
-  // Set the video source directly. H.264 in MP4 is more universally supported on TVs than VP9.
-  video.src = '../test-materials_media_big-buck-bunny-h264-240p-30fps.mp4';
-
-  // --- TV Remote Navigation ---
-
-  const focusableElements = [video, changePosterBtn];
-  let currentFocusIndex = 0;
-
-  const setFocus = () => {
-    // Remove the focus class from all elements
-    focusableElements.forEach(el => el.classList.remove('focused'));
-    // Add the focus class to the current element
-    const currentElement = focusableElements[currentFocusIndex];
-    currentElement.classList.add('focused');
-    // Programmatically set focus for screen readers and other accessibility tools
-    currentElement.focus();
-  };
-
-  // Set initial focus on the video player
-  setFocus();
-
-  document.addEventListener('keydown', (e) => {
-    const activeElement = document.activeElement;
-
-    // --- Navigation between elements ---
-    if (activeElement === video && e.key === 'ArrowDown') {
-      e.preventDefault();
-      currentFocusIndex = 1; // Index of the button
-      setFocus();
-    } else if (activeElement === changePosterBtn && e.key === 'ArrowUp') {
-      e.preventDefault();
-      currentFocusIndex = 0; // Index of the video
-      setFocus();
-    }
-
-    // --- Action for specific elements ---
-    // Only handle 'Enter' for the button. Let the Cobalt platform handle 'Enter' for the video player.
-    if (activeElement === changePosterBtn && (e.key === 'Enter' || e.keyCode === 13)) {
-      e.preventDefault();
-      activeElement.click();
+  // --- Keyboard Playback Control ---
+  document.addEventListener('keydown', () => {
+    if (video.paused) {
+      setTimeout(() => {
+        video.play();
+      }, 3000);
+    } else {
+      video.pause();
     }
   });
 
-
-  // --- Event Listeners ---
-
-  // Handle the poster change button click
-  changePosterBtn.addEventListener('click', () => {
-    // Cycle to the next poster in the array
-    currentPosterIndex = (currentPosterIndex + 1) % posters.length;
-    const newPoster = posters[currentPosterIndex];
-    video.poster = newPoster;
-    console.log(`Poster changed to: ${newPoster}`);
-  });
-
-  // Log when the video starts playing
+  // Stop the video after 5 seconds of playback
   video.addEventListener('play', () => {
     console.log('Video playback started. Poster is now hidden.');
+    setTimeout(() => {
+      video.pause();
+      video.load(); // Reset the video to show the poster
+      console.log('Video stopped after 5 seconds.');
+    }, 6000);
   });
 
   // Log when the video is paused
@@ -95,13 +49,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Log when the video finishes
   video.addEventListener('ended', () => {
-    console.log('Video ended. Poster will be shown again after a brief moment.');
-    // The browser shows the poster automatically when the video ends.
-    // To play again, the user can press the play button.
+    console.log('Video ended. Resetting to show poster.');
+    video.load();
   });
-
-  // --- Initial Console Log ---
   console.log(`Initial poster is: ${video.poster}`);
 });

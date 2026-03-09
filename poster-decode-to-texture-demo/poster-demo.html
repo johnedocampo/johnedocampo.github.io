@@ -17,7 +17,7 @@
 
 <html>
   <head>
-    <title>HTMLMediaElement.poster Demo</title>
+    <title>Video Elements With Background</title>
     <style>
         body {
           margin: 0;
@@ -30,9 +30,7 @@
 
         #ui-layer {
           display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
+          justify-content: space-between;
           position: absolute;
           top: 15%;
           height: 85%;
@@ -43,31 +41,21 @@
         }
 
         .item {
-          width: 80%;
-          height: 80%;
+          width: 320px;
+          height: 240px;
           display: inline-block;
           margin: 24px;
           vertical-align: middle;
-        }
-        button {
-          margin-top: 20px;
-          padding: 10px 20px;
-          font-size: 16px;
-        }
-        button:focus, video:focus {
-          outline: 5px solid orange;
-          box-shadow: 0 0 15px orange;
         }
     </style>
   </head>
   <body>
     <div id="ui-layer">
       <div class="item">
-        <video id="video_player" controls tabindex="0"
-               poster="sddefault.jpg">
+        <video id="video2" muted="1"
+           poster="sddefault.jpg">
         </video>
       </div>
-      <button id="changePosterBtn">Change Poster</button>
     </div>
     <script src="poster-demo.js"></script>
   </body>
