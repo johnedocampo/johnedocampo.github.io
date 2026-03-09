@@ -12,46 +12,87 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Using MSE implementation to ensure compatibility with TV browsers.
+
 document.addEventListener('DOMContentLoaded', () => {
   const video = document.getElementById('videoPlayer');
+  var audioData;
+  var videoData;
 
-  video.src = 'vp9-720p.webm';
+  function downloadMediaData(downloadedCallback) {
+    var xhr = new XMLHttpRequest;
 
-  // --- Keyboard Playback Control ---
-  document.addEventListener('keydown', () => {
-    if (video.paused) {
-      setTimeout(() => {
-        video.play();
-      }, 3000);
-    } else {
-      video.pause();
+    xhr.onload = function() {
+      audioData = xhr.response;
+      console.log("Downloaded " + audioData.byteLength + " of audio data.");
+
+      xhr.onload = function() {
+        videoData = xhr.response;
+        console.log("Downloaded " + videoData.byteLength + " of video data.");
+        downloadedCallback();
+      }
+
+      xhr.open("GET", "../video-background-demo/vp9-720p.webm", true);
+      xhr.send();
     }
-  });
 
-  // Stop the video after 5 seconds of playback
-  video.addEventListener('play', () => {
-    console.log('Video playback started. Poster is now hidden.');
-    setTimeout(() => {
-      video.pause();
-      video.load(); // Reset the video to show the poster
-      console.log('Video stopped after 5 seconds.');
-    }, 6000);
-  });
+    xhr.open("GET", "../video-background-demo/dash-audio.mp4", true);
+    xhr.responseType = "arraybuffer";
+    xhr.send();
+  }
 
-  // Log when the video is paused
-  video.addEventListener('pause', () => {
-    // The poster is only shown again if the video is reset to the beginning.
-    // Otherwise, the current video frame is shown.
-    if (video.currentTime === 0) {
-      console.log('Video is at the beginning; poster is visible.');
-    } else {
-      console.log(`Video paused at ${video.currentTime.toFixed(2)}s. Current frame is visible.`);
+  function playVideoOn(videoElement) {
+    // Prevent starting if already playing
+    if (videoElement.src && !videoElement.paused) {
+      console.log("Ignore key press as a video is still playing.");
+      return;
     }
-  });
 
-  video.addEventListener('ended', () => {
-    console.log('Video ended. Resetting to show poster.');
-    video.load();
-  });
+    var ms = new MediaSource;
+    ms.addEventListener('sourceopen', function() {
+      console.log("Creating SourceBuffer objects.");
+      var audioBuffer = ms.addSourceBuffer('audio/mp4; codecs="mp4a.40.2"');
+      // Using the decode-to-texture hint as it might be important for the TV platform
+      var videoBuffer = ms.addSourceBuffer('video/webm; codecs="vp9"; decode-to-texture=true');
+      audioBuffer.addEventListener("updateend", function() {
+        audioBuffer.abort();
+        videoBuffer.addEventListener("updateend", function() {
+          videoBuffer.addEventListener("updateend", function() {
+            videoBuffer.abort();
+            ms.endOfStream();
+            videoElement.ontimeupdate = function() {
+              // Stop playback after 5 seconds
+              if (videoElement.currentTime > 5) {
+                console.log("Stop playback after 5 seconds.");
+                videoElement.src = '';
+                videoElement.load(); // This resets the video and shows the poster
+                videoElement.ontimeupdate = null;
+              }
+            }
+            console.log("Start playback.");
+            videoElement.play();
+          });
+          videoBuffer.appendBuffer(videoData.slice(1024));
+        });
+        videoBuffer.appendBuffer(videoData.slice(0, 1024));
+      });
+      audioBuffer.appendBuffer(audioData);
+    });
+
+    console.log("Attaching MediaSource to video element.");
+    videoElement.src = URL.createObjectURL(ms);
+  }
+
+  function setupKeyHandler() {
+    document.onkeydown = function() {
+      playVideoOn(video);
+    };
+    console.log('Key handler set up. Press any key to play video.');
+  }
+
+  console.log('Starting media download...');
+  downloadMediaData(setupKeyHandler);
+
+  // --- Initial Console Log ---
   console.log(`Initial poster is: ${video.poster}`);
 });
