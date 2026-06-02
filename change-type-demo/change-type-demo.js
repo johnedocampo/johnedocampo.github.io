@@ -1,19 +1,22 @@
 const video = document.getElementById('my-video');
-const consoleDiv = document.getElementById('console');
 const statusOverlay = document.getElementById('status-overlay');
+const codecDisplay = document.getElementById('codec-display');
 
 function log(message, type = 'info') {
-  const entry = document.createElement('div');
-  entry.className = `log-entry log-${type}`;
-  entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-  consoleDiv.appendChild(entry);
-  consoleDiv.scrollTop = consoleDiv.scrollHeight;
-  console.log(`[DEMO] ${message}`);
+  console.log(`[DEMO] [${type.toUpperCase()}] ${message}`);
 }
 
 function updateStatus(status) {
   statusOverlay.textContent = `Status: ${status}`;
   log(`Status changed to: ${status}`, 'info');
+}
+
+function updateCodecDisplay(codec, name) {
+  const expectedHTML = `<span style="color: #fff">${name}</span><br><small>${codec}</small>`;
+  if (codecDisplay.innerHTML !== expectedHTML) {
+    codecDisplay.innerHTML = expectedHTML;
+    log(`Playing codec: ${name} (${codec})`, 'info');
+  }
 }
 
 // Check for changeType support
@@ -68,6 +71,14 @@ video.addEventListener('ended', () => {
 });
 video.addEventListener('error', (e) => log(`Video Error: ${video.error.message} (code: ${video.error.code})`, 'error'));
 
+video.addEventListener('timeupdate', () => {
+  const time = video.currentTime;
+  const currentPlayingVideo = videos.find(v => typeof v.startTime === 'number' && typeof v.endTime === 'number' && time >= v.startTime && time < v.endTime);
+  if (currentPlayingVideo) {
+    updateCodecDisplay(currentPlayingVideo.codec, currentPlayingVideo.name);
+  }
+});
+
 async function playNextVideo() {
   if (currentVideoIndex >= videos.length) {
     log('All videos appended to SourceBuffer!', 'success');
@@ -110,6 +121,7 @@ async function playNextVideo() {
     log(`Setting timestampOffset to ${nextTimestampOffset}s`, 'info');
     sourceBuffer.timestampOffset = nextTimestampOffset;
     const start = nextTimestampOffset;
+    currentVideo.startTime = start;
 
     log(`Appending buffer to SourceBuffer...`, 'info');
     await appendBufferPromise(sourceBuffer, data);
@@ -127,8 +139,10 @@ async function playNextVideo() {
         log(`Video duration (${duration.toFixed(2)}s) exceeds 5s limit. Removing extra range [${removeStart.toFixed(2)}, ${end.toFixed(2)}]...`, 'warn');
         await removePromise(sourceBuffer, removeStart, end);
         log(`Removed extra range successfully.`, 'success');
+        currentVideo.endTime = removeStart;
         nextTimestampOffset = removeStart;
       } else {
+        currentVideo.endTime = end;
         nextTimestampOffset = end;
       }
     } else {

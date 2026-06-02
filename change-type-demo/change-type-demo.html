@@ -10,12 +10,42 @@
       margin: 0;
       padding: 20px;
       display: flex;
-      flex-direction: row;
+      justify-content: center;
+      align-items: center;
       height: 100vh;
       box-sizing: border-box;
     }
+    #main-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 960px;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 20px;
+      width: 100%;
+    }
+    h1 {
+      margin: 0 0 10px 0;
+      color: #00e5ff;
+      font-size: 2.5rem;
+    }
+    #codec-display {
+      font-size: 1rem;
+      color: #e0e0e0;
+      background-color: rgba(255, 255, 255, 0.05);
+      padding: 10px 20px;
+      border-radius: 20px;
+      border: 1px solid #333;
+      display: inline-block;
+      min-height: 2.5em;
+      line-height: 1.4;
+    }
     #video-container {
-      flex: 2;
+      width: 100%;
+      height: 540px;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -30,41 +60,6 @@
       height: 100%;
       object-fit: contain;
     }
-    #console-container {
-      flex: 1;
-      margin-left: 20px;
-      display: flex;
-      flex-direction: column;
-      background-color: #1e1e1e;
-      border: 2px solid #333;
-      border-radius: 8px;
-      padding: 15px;
-      box-sizing: border-box;
-    }
-    h2 {
-      margin-top: 0;
-      color: #00e5ff;
-      border-bottom: 1px solid #333;
-      padding-bottom: 10px;
-    }
-    #console {
-      flex: 1;
-      overflow-y: auto;
-      font-family: 'Courier New', Courier, monospace;
-      font-size: 14px;
-      line-height: 1.5;
-      white-space: pre-wrap;
-    }
-    .log-entry {
-      margin-bottom: 8px;
-      border-left: 3px solid #555;
-      padding-left: 8px;
-    }
-    .log-info { border-left-color: #00e5ff; }
-    .log-success { border-left-color: #00e676; color: #a7ffeb; }
-    .log-warn { border-left-color: #ffd600; color: #ffe57f; }
-    .log-error { border-left-color: #ff1744; color: #ff8a80; }
-    
     #status-overlay {
       position: absolute;
       top: 10px;
@@ -80,14 +75,16 @@
 </head>
 <body>
 
-  <div id="video-container">
-    <video id="my-video" controls autoplay></video>
-    <div id="status-overlay">Status: Idle</div>
-  </div>
+  <div id="main-container">
+    <header>
+      <h1>ChangeType Demo</h1>
+      <div id="codec-display">Codec: Detecting...</div>
+    </header>
 
-  <div id="console-container">
-    <h2>Demo Log</h2>
-    <div id="console"></div>
+    <div id="video-container">
+      <video id="my-video" controls autoplay></video>
+      <div id="status-overlay">Status: Idle</div>
+    </div>
   </div>
 
   <!-- Externalized JavaScript -->
