@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Using MSE implementation to ensure compatibility with TV browsers.
-
 document.addEventListener('DOMContentLoaded', () => {
   const video = document.getElementById('videoPlayer');
   var audioData;
@@ -42,7 +40,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function playVideoOn(videoElement) {
-    // Prevent starting if already playing
     if (videoElement.src && !videoElement.paused) {
       console.log("Ignore key press as a video is still playing.");
       return;
@@ -52,7 +49,6 @@ document.addEventListener('DOMContentLoaded', () => {
     ms.addEventListener('sourceopen', function() {
       console.log("Creating SourceBuffer objects.");
       var audioBuffer = ms.addSourceBuffer('audio/mp4; codecs="mp4a.40.2"');
-      // Using the decode-to-texture hint as it might be important for the TV platform
       var videoBuffer = ms.addSourceBuffer('video/webm; codecs="vp9"; decode-to-texture=true');
       audioBuffer.addEventListener("updateend", function() {
         audioBuffer.abort();
@@ -61,11 +57,10 @@ document.addEventListener('DOMContentLoaded', () => {
             videoBuffer.abort();
             ms.endOfStream();
             videoElement.ontimeupdate = function() {
-              // Stop playback after 5 seconds
               if (videoElement.currentTime > 5) {
                 console.log("Stop playback after 5 seconds.");
                 videoElement.src = '';
-                videoElement.load(); // This resets the video and shows the poster
+                videoElement.load();
                 videoElement.ontimeupdate = null;
               }
             }
