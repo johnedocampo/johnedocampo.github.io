@@ -60,7 +60,12 @@ mediaSource.addEventListener('sourceclose', () => log('MediaSource closed', 'war
 video.addEventListener('play', () => log('Video started playing', 'info'));
 video.addEventListener('playing', () => updateStatus('Playing'));
 video.addEventListener('waiting', () => updateStatus('Waiting/Buffering'));
-video.addEventListener('ended', () => updateStatus('Playback Ended'));
+video.addEventListener('ended', () => {
+  updateStatus('Playback Ended');
+  log('Playback ended. Seeking to beginning for loop...', 'info');
+  video.currentTime = 0;
+  video.play().catch(e => log(`Play failed during loop: ${e.message}`, 'error'));
+});
 video.addEventListener('error', (e) => log(`Video Error: ${video.error.message} (code: ${video.error.code})`, 'error'));
 
 async function playNextVideo() {
