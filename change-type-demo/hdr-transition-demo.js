@@ -170,8 +170,13 @@ function poll() {
     } else if (stats.freezeStart !== null) {
       const ms = now - stats.freezeStart;
       if (ms > FREEZE_THRESHOLD_MS) {
-        stats.freezes.push({ at: stats.lastCt, ms });
-        log(`currentTime froze for ${ms.toFixed(0)} ms at ${stats.lastCt.toFixed(3)}s`, true);
+        const at = stats.lastCt;
+        const inWindow = transitionTime !== null &&
+            at >= transitionTime - WINDOW_BEFORE_S &&
+            at <= transitionTime + WINDOW_AFTER_S;
+        if (inWindow) stats.freezes.push({ at, ms });
+        log(`currentTime froze for ${ms.toFixed(0)} ms at ${at.toFixed(3)}s` +
+            (inWindow ? '' : ' (outside transition window, not counted)'), inWindow);
       }
       stats.freezeStart = null;
     }
@@ -190,11 +195,10 @@ function poll() {
       stats.windowResult = {
         lostMs,
         dropped: q.dropped - w.dropped,
-        total: q.total - w.total,
       };
       log(`Transition window [T-${WINDOW_BEFORE_S}s, T+${WINDOW_AFTER_S}s]: ` +
           `wall-vs-media lost ${lostMs.toFixed(0)} ms, ` +
-          `dropped ${stats.windowResult.dropped} / decoded ${stats.windowResult.total}`);
+          `dropped ${stats.windowResult.dropped}`);
     }
   }
 
@@ -227,15 +231,14 @@ function render() {
     `YTS criterion   ${stats.result} (ct >= T+${PASS_AFTER_S}s)`,
     ``,
     `-- totals --`,
-    `dropped/decoded ${q.dropped} / ${q.total}`,
-    `freezes >${FREEZE_THRESHOLD_MS}ms  ${stats.freezes.length} (max ${maxFreeze.toFixed(0)} ms)`,
+    `dropped         ${q.dropped}`,
     `ct regressions  ${stats.regressions} (max ${stats.maxRegressionMs.toFixed(1)} ms)`,
     ``,
     `-- transition window --`,
     `[T-${WINDOW_BEFORE_S}s, T+${WINDOW_AFTER_S}s]`,
     `time lost       ${w ? w.lostMs.toFixed(0) + ' ms' : '-'}`,
     `dropped         ${w ? w.dropped : '-'}`,
-    `decoded         ${w ? w.total : '-'}`,
+    `freezes >${FREEZE_THRESHOLD_MS}ms  ${stats.freezes.length} (max ${maxFreeze.toFixed(0)} ms)`,
     ``,
     `Any key: reload for a clean run`,
   ];
