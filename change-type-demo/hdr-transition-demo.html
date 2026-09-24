@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>SDR to HDR Transition Demo</title>
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      background-color: #121212;
+      color: #e0e0e0;
+      margin: 0;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+    h1 { margin: 0 0 8px 0; color: #00e5ff; font-size: 2rem; text-align: center; }
+    #segment {
+      text-align: center;
+      font-size: 1.2rem;
+      margin-bottom: 8px;
+    }
+    #segment.sdr { color: #9e9e9e; }
+    #segment.hdr { color: #ffd54f; }
+    #layout { display: flex; gap: 16px; justify-content: center; }
+    #video-container {
+      width: 960px;
+      height: 540px;
+      background-color: #000;
+      border: 2px solid #333;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    video { width: 100%; height: 100%; object-fit: contain; }
+    #stats {
+      width: 360px;
+      font-family: monospace;
+      font-size: 14px;
+      line-height: 1.5;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 10px;
+      white-space: pre;
+    }
+    #log {
+      margin: 12px auto 0 auto;
+      width: 1336px;
+      height: 180px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 12px;
+      background: #000;
+      border: 1px solid #333;
+      padding: 6px;
+      white-space: pre-wrap;
+    }
+    .warn { color: #ff8a65; }
+  </style>
+</head>
+<body>
+  <h1>SDR &rarr; HDR Transition (VP9 p0 &rarr; p2, continuous audio)</h1>
+  <div id="segment">Segment: loading...</div>
+  <div id="layout">
+    <div id="video-container">
+      <video id="video" controls autoplay></video>
+    </div>
+    <div id="stats">Stats: waiting...</div>
+  </div>
+  <div id="log"></div>
+  <script src="hdr-transition-demo.js"></script>
+</body>
+</html>
