@@ -13,6 +13,13 @@
 //   ?changetype=0  Do not call SourceBuffer.changeType() before the HDR segment
 //                  (default 1). The decoder-side transition triggers on color
 //                  metadata either way.
+//   ?hdr=1         Use the HDR segment. Default (temporary) is an SDR 1080p
+//                  segment instead, so the switch is a resolution change with
+//                  no color change. Used
+//                  with a probe build that rebuilds the codec on a frame size
+//                  change, to separate rebuild effects from HDR effects.
+
+const params = new URLSearchParams(window.location.search);
 
 const AUDIO = { url: 'audio_opus.webm', mime: 'audio/webm; codecs="opus"' };
 const SDR = {
@@ -25,6 +32,13 @@ const HDR = {
   mime: 'video/webm; codecs="vp09.02.31.10.01.09.16.09.00"',
   name: 'HDR  (home video, VP9 profile 2, bt2020 / PQ)',
 };
+const SDR_1080P = {
+  url: 'sdr_vp9_p0_1080p.webm',
+  mime: 'video/webm; codecs="vp09.00.40.08.01.01.01.01.00"',
+  name: 'SDR 1080p  (home video, VP9 profile 0, bt709)',
+};
+// TEMPORARY: default to the SDR resolution switch; ?hdr=1 restores SDR->HDR.
+const SECOND = params.get('hdr') === '1' ? HDR : SDR_1080P;
 
 // YTS defaults (fromSeconds = 2, toSeconds = 3, target = transition + 2).
 const FROM_SECONDS = 2;
@@ -38,7 +52,6 @@ const WINDOW_AFTER_S = 2.0;
 const FREEZE_THRESHOLD_MS = 100;
 const POLL_MS = 20;
 
-const params = new URLSearchParams(window.location.search);
 const useChangeType = params.get('changetype') !== '0';
 
 const video = document.getElementById('video');
@@ -108,7 +121,7 @@ async function fetchBuffer(url) {
 }
 
 async function setup() {
-  for (const m of [AUDIO.mime, SDR.mime, HDR.mime]) {
+  for (const m of [AUDIO.mime, SDR.mime, SECOND.mime]) {
     log(`isTypeSupported(${m}) = ${MediaSource.isTypeSupported(m)}`);
   }
   log(`changeType() before HDR: ${useChangeType ? 'yes' : 'no'}`);
@@ -118,7 +131,7 @@ async function setup() {
   await new Promise((r) => ms.addEventListener('sourceopen', r, { once: true }));
 
   const [audioData, sdrData, hdrData] = await Promise.all(
-      [fetchBuffer(AUDIO.url), fetchBuffer(SDR.url), fetchBuffer(HDR.url)]);
+      [fetchBuffer(AUDIO.url), fetchBuffer(SDR.url), fetchBuffer(SECOND.url)]);
   log('Fetched all media.');
 
   const audioSb = ms.addSourceBuffer(AUDIO.mime);
@@ -137,12 +150,12 @@ async function setup() {
 
   videoSb.appendWindowEnd = windowEnd;
   if (useChangeType) {
-    videoSb.changeType(HDR.mime);
-    log(`changeType(${HDR.mime})`);
+    videoSb.changeType(SECOND.mime);
+    log(`changeType(${SECOND.mime})`);
   }
   await append(videoSb, hdrData);
   const videoEnd = videoSb.buffered.end(videoSb.buffered.length - 1);
-  log(`HDR appended: [${transitionTime.toFixed(3)}, ${videoEnd.toFixed(3)}]` +
+  log(`Second segment appended: [${transitionTime.toFixed(3)}, ${videoEnd.toFixed(3)}]` +
       ` (buffered ranges: ${videoSb.buffered.length})`);
 
   await audioDone;
@@ -209,7 +222,7 @@ function poll() {
   }
 
   const inHdr = transitionTime !== null && ct >= transitionTime;
-  segmentEl.textContent = `Segment: ${inHdr ? HDR.name : SDR.name}`;
+  segmentEl.textContent = `Segment: ${inHdr ? SECOND.name : SDR.name}`;
   segmentEl.className = inHdr ? 'hdr' : 'sdr';
 
   stats.lastCt = ct;
