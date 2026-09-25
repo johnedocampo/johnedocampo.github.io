@@ -13,11 +13,18 @@
 //   ?changetype=0  Do not call SourceBuffer.changeType() before the HDR segment
 //                  (default 1). The decoder-side transition triggers on color
 //                  metadata either way.
-//   ?hdr=1         Use the HDR segment. Default (temporary) is an SDR 1080p
-//                  segment instead, so the switch is a resolution change with
-//                  no color change. Used
-//                  with a probe build that rebuilds the codec on a frame size
-//                  change, to separate rebuild effects from HDR effects.
+//   ?res=1         Use an SDR 1080p segment instead of HDR (720p -> 1080p SDR
+//                  switch with no color change).
+//
+// Transition metrics, measured over [T - WINDOW_BEFORE_S, T + WINDOW_AFTER_S]:
+//   clock stall  Wall time minus media time elapsed. This is how long the
+//                audio-driven media clock stopped (e.g. an audio underrun).
+//   dropped      droppedVideoFrames delta, as reported by the player
+//                (approximate). Frames skipped to catch up with the clock. On
+//                devices using the video frame tracker, frames rendered right
+//                before a codec release may be counted too.
+// currentTime is interpolated by the renderer and totalVideoFrames counts
+// frames written (not shown), so neither can measure the picture gap.
 
 const params = new URLSearchParams(window.location.search);
 
@@ -37,19 +44,16 @@ const SDR_1080P = {
   mime: 'video/webm; codecs="vp09.00.40.08.01.01.01.01.00"',
   name: 'SDR 1080p  (home video, VP9 profile 0, bt709)',
 };
-// TEMPORARY: default to the SDR resolution switch; ?hdr=1 restores SDR->HDR.
-const SECOND = params.get('hdr') === '1' ? HDR : SDR_1080P;
+const SECOND = params.get('res') === '1' ? SDR_1080P : HDR;
 
 // YTS defaults (fromSeconds = 2, toSeconds = 3, target = transition + 2).
 const FROM_SECONDS = 2;
 const TO_SECONDS = 3;
 const PASS_AFTER_S = 2;
 
-// Window around the transition used for the drift / dropped-frame deltas.
+// Window around the transition used for the metrics above.
 const WINDOW_BEFORE_S = 1.0;
 const WINDOW_AFTER_S = 2.0;
-// currentTime not advancing for longer than this while playing is a freeze.
-const FREEZE_THRESHOLD_MS = 100;
 const POLL_MS = 20;
 
 const useChangeType = params.get('changetype') !== '0';
@@ -74,13 +78,10 @@ function log(msg, warn) {
 let transitionTime = null;  // Media time where HDR starts.
 const stats = {
   lastCt: null,
-  lastWall: null,
-  freezeStart: null,
-  freezes: [],        // {at, ms}
   regressions: 0,
   maxRegressionMs: 0,
-  windowStart: null,  // {wall, ct, dropped, total}
-  windowResult: null, // {lostMs, dropped, total}
+  windowStart: null,  // {wall, ct, dropped}
+  windowResult: null, // {stallMs, dropped}
   result: 'pending',  // YTS criterion: 'pending' | 'PASS' | 'FAIL'
 };
 
@@ -171,28 +172,11 @@ function poll() {
   const ct = video.currentTime;
   const playing = !video.paused && !video.ended && !video.seeking;
 
-  if (stats.lastCt !== null && playing) {
-    if (ct < stats.lastCt - 0.001) {
-      const ms = (stats.lastCt - ct) * 1000;
-      stats.regressions++;
-      stats.maxRegressionMs = Math.max(stats.maxRegressionMs, ms);
-      log(`currentTime regressed by ${ms.toFixed(1)} ms`, true);
-    }
-    if (ct === stats.lastCt) {
-      if (stats.freezeStart === null) stats.freezeStart = stats.lastWall;
-    } else if (stats.freezeStart !== null) {
-      const ms = now - stats.freezeStart;
-      if (ms > FREEZE_THRESHOLD_MS) {
-        const at = stats.lastCt;
-        const inWindow = transitionTime !== null &&
-            at >= transitionTime - WINDOW_BEFORE_S &&
-            at <= transitionTime + WINDOW_AFTER_S;
-        if (inWindow) stats.freezes.push({ at, ms });
-        log(`currentTime froze for ${ms.toFixed(0)} ms at ${at.toFixed(3)}s` +
-            (inWindow ? '' : ' (outside transition window, not counted)'), inWindow);
-      }
-      stats.freezeStart = null;
-    }
+  if (stats.lastCt !== null && playing && ct < stats.lastCt - 0.001) {
+    const ms = (stats.lastCt - ct) * 1000;
+    stats.regressions++;
+    stats.maxRegressionMs = Math.max(stats.maxRegressionMs, ms);
+    log(`currentTime regressed by ${ms.toFixed(1)} ms`, true);
   }
 
   if (transitionTime !== null && playing) {
@@ -200,18 +184,17 @@ function poll() {
     const winStart = transitionTime - WINDOW_BEFORE_S;
     const winEnd = transitionTime + WINDOW_AFTER_S;
     if (!stats.windowStart && ct >= winStart && ct < transitionTime) {
-      stats.windowStart = { wall: now, ct, dropped: q.dropped, total: q.total };
+      stats.windowStart = { wall: now, ct, dropped: q.dropped };
     }
     if (stats.windowStart && !stats.windowResult && ct >= winEnd) {
       const w = stats.windowStart;
-      const lostMs = (now - w.wall) - (ct - w.ct) * 1000;
-      stats.windowResult = {
-        lostMs,
-        dropped: q.dropped - w.dropped,
-      };
+      // Clamp: timer jitter can make this slightly negative.
+      const stallMs = Math.max(0, (now - w.wall) - (ct - w.ct) * 1000);
+      const dropped = q.dropped - w.dropped;
+      stats.windowResult = { stallMs, dropped };
       log(`Transition window [T-${WINDOW_BEFORE_S}s, T+${WINDOW_AFTER_S}s]: ` +
-          `wall-vs-media lost ${lostMs.toFixed(0)} ms, ` +
-          `dropped ${stats.windowResult.dropped}`);
+          `clock stall ${stallMs.toFixed(0)} ms, ` +
+          `dropped ${dropped} (player-reported, approx.)`);
     }
   }
 
@@ -226,14 +209,12 @@ function poll() {
   segmentEl.className = inHdr ? 'hdr' : 'sdr';
 
   stats.lastCt = ct;
-  stats.lastWall = now;
   render();
 }
 
 function render() {
   const q = quality();
   const w = stats.windowResult;
-  const maxFreeze = stats.freezes.reduce((m, f) => Math.max(m, f.ms), 0);
   const lines = [
     `currentTime     ${video.currentTime.toFixed(3)} s`,
     `transition T    ${transitionTime === null ? '-' : transitionTime.toFixed(3) + ' s'}`,
@@ -244,14 +225,13 @@ function render() {
     `YTS criterion   ${stats.result} (ct >= T+${PASS_AFTER_S}s)`,
     ``,
     `-- totals --`,
-    `dropped         ${q.dropped}`,
+    `dropped         ${q.dropped} (player-reported, approx.)`,
     `ct regressions  ${stats.regressions} (max ${stats.maxRegressionMs.toFixed(1)} ms)`,
     ``,
     `-- transition window --`,
     `[T-${WINDOW_BEFORE_S}s, T+${WINDOW_AFTER_S}s]`,
-    `time lost       ${w ? w.lostMs.toFixed(0) + ' ms' : '-'}`,
-    `dropped         ${w ? w.dropped : '-'}`,
-    `freezes >${FREEZE_THRESHOLD_MS}ms  ${stats.freezes.length} (max ${maxFreeze.toFixed(0)} ms)`,
+    `clock stall     ${w ? w.stallMs.toFixed(0) + ' ms' : '-'}`,
+    `dropped         ${w ? w.dropped + ' (player-reported, approx.)' : '-'}`,
     ``,
     `Any key: reload for a clean run`,
   ];
