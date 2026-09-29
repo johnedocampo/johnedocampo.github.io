@@ -30,17 +30,17 @@ const useChangeType = params.get('changetype') !== '0';
 
 const AUDIO = { url: 'audio_opus.webm', mime: 'audio/webm; codecs="opus"' };
 const SDR = {
-  url: 'sdr_vp9_p0_720p.webm',
+  url: 'sdr_short_vp9_p0_720p.webm',
   mime: 'video/webm; codecs="vp09.00.31.08.01.01.01.01.00"',
   label: 'SDR',
-  title: 'Late night talk show moment',
+  title: 'Big Buck Bunny wakes up',
   detail: 'VP9 profile 0, bt709',
 };
 const HDR = {
   url: 'hdr_vp9_p2_720p.webm',
   mime: 'video/webm; codecs="vp09.02.31.10.01.09.16.09.00"',
   label: 'HDR',
-  title: 'Backyard home video',
+  title: 'Game night reaction',
   detail: 'VP9 profile 2, bt2020 / PQ',
 };
 const SHORTS = [SDR, HDR];
