@@ -17,11 +17,23 @@
 //   ?changetype=0  Do not call changeType() before appending a short whose mime
 //                  type differs (default 1).
 //
+// Transition UI (mirrors the YouTube TV ytlr Shorts page, default flags):
+//   On Down: pause the player, start loading the next short (seek), slide the
+//   thumbnail list up by one item height (300 ms,
+//   cubic-bezier(0.26, 0.86, 0.44, 0.985)), and hide the player behind its
+//   background. Thumbnails are visible while playback is not ready. When the
+//   player reports playing, the player is shown and thumbnails are hidden
+//   immediately, whether or not the slide has finished. The overlay fades out
+//   (0.1 s) on Down and back in (0.3 s) once playing.
+//   Approximations: thumbnails are the first frame of each clip, and the player
+//   background is black (the limited-memory variant of the TV page).
+//
 // Per-transition metrics (logged to the console, so they show up in logcat):
 //   seek     Down press -> 'seeked'.
-//   resume   Down press -> currentTime first advances in the new short. The
-//            picture is frozen (or black) for about this long; logcat's
-//            "Render() hasn't been called" line is the exact measure.
+//   shown    Down press -> 'playing' (player shown again).
+//   resume   Down press -> currentTime first advances in the new short.
+//            logcat's "Render() hasn't been called" line is the exact measure
+//            of the picture gap.
 //   dropped  droppedVideoFrames delta from the press to RESULT_AFTER_MS later
 //            (player-reported, approximate).
 
@@ -32,6 +44,7 @@ const AUDIO = { url: 'audio_opus.webm', mime: 'audio/webm; codecs="opus"' };
 const SDR = {
   url: 'sdr_short_vp9_p0_720p.webm',
   mime: 'video/webm; codecs="vp09.00.31.08.01.01.01.01.00"',
+  poster: 'sdr_short_poster.jpg',
   label: 'SDR',
   title: 'Big Buck Bunny wakes up',
   detail: 'VP9 profile 0, bt709',
@@ -39,6 +52,7 @@ const SDR = {
 const HDR = {
   url: 'hdr_vp9_p2_720p.webm',
   mime: 'video/webm; codecs="vp09.02.31.10.01.09.16.09.00"',
+  poster: 'hdr_short_poster.jpg',
   label: 'HDR',
   title: 'Game night reaction',
   detail: 'VP9 profile 2, bt2020 / PQ',
@@ -62,6 +76,9 @@ const KEY_DOWN = new Set(['ArrowDown', 'Down']);
 const KEYCODE_DOWN = 40;
 
 const video = document.getElementById('video');
+const shortEl = document.getElementById('short');
+const listEl = document.getElementById('list');
+const overlayEl = document.getElementById('overlay');
 const statsEl = document.getElementById('stats');
 const titleEl = document.getElementById('title');
 const toastEl = document.getElementById('toast');
@@ -218,8 +235,65 @@ async function setup() {
   await enqueue(() => bufferShort(0));
   enqueue(() => bufferShort(1));
 
+  renderItems();
+  layoutList(false);
+  hidePlayer();
   video.currentTime = shorts[0].start;
   video.play().catch((e) => log(`play() rejected: ${e}. Press Enter.`, true));
+}
+
+// --- Transition UI -----------------------------------------------------------
+
+let playbackReady = false;
+const items = new Map();  // short index -> thumbnail element
+
+function itemHeight() {
+  return shortEl.clientHeight;
+}
+
+// Keeps thumbnails for the previous, current and next shorts.
+function renderItems() {
+  const h = itemHeight();
+  for (const [index, el] of items) {
+    if (index < current - 1 || index > current + 1) {
+      el.remove();
+      items.delete(index);
+    }
+  }
+  for (let index = Math.max(0, current - 1); index <= current + 1; index++) {
+    let el = items.get(index);
+    if (!el) {
+      el = document.createElement('div');
+      el.className = 'item';
+      el.style.backgroundImage = `url(${formatFor(index).poster})`;
+      el.classList.toggle('thumbnail-hidden', playbackReady);
+      listEl.appendChild(el);
+      items.set(index, el);
+    }
+    el.style.top = `${index * h}px`;
+    el.style.height = `${h}px`;
+  }
+}
+
+function layoutList(animate) {
+  listEl.style.transition = animate ? '' : 'none';
+  listEl.style.transform = `translateY(${-current * itemHeight()}px) translateZ(0)`;
+}
+
+function setPlaybackReady(ready) {
+  playbackReady = ready;
+  for (const el of items.values()) {
+    el.classList.toggle('thumbnail-hidden', ready);
+  }
+  overlayEl.classList.toggle('hidden', !ready);
+}
+
+function hidePlayer() {
+  shortEl.classList.add('hide-player');
+}
+
+function showPlayer() {
+  shortEl.classList.remove('hide-player');
 }
 
 function goToNextShort() {
@@ -240,13 +314,21 @@ function goToNextShort() {
     pressWall: performance.now(),
     pressDropped: droppedFrames(),
     seekedWall: null,
+    shownWall: null,
     resumedWall: null,
   };
   log(`Transition ${transitions}: short ${current} (${from}) -> short ${next} (${to})`);
 
+  // Same order as the TV Shorts page: pause, load the next short, scroll the
+  // list with playback marked not ready, then hide the player.
+  video.pause();
   const previous = current;
   current = next;
   video.currentTime = pending.targetStart;
+  renderItems();
+  setPlaybackReady(false);
+  layoutList(true);
+  hidePlayer();
 
   enqueue(() => bufferShort(next + 1));
   enqueue(() => evictShort(previous));
@@ -259,18 +341,23 @@ function updatePending(now) {
       video.currentTime >= p.targetStart + RESUME_THRESHOLD_S) {
     p.resumedWall = now;
   }
-  if (p.resumedWall === null || now - p.pressWall < RESULT_AFTER_MS) return;
+  if (p.resumedWall === null || p.shownWall === null ||
+      now - p.pressWall < RESULT_AFTER_MS) {
+    return;
+  }
 
   const result = {
     id: p.id,
     from: p.from,
     to: p.to,
     seekMs: p.seekedWall - p.pressWall,
+    shownMs: p.shownWall - p.pressWall,
     resumeMs: p.resumedWall - p.pressWall,
     dropped: droppedFrames() - p.pressDropped,
   };
   log(`Transition ${result.id} (${result.from} -> ${result.to}) result: ` +
       `seek ${result.seekMs.toFixed(0)} ms, ` +
+      `shown ${result.shownMs.toFixed(0)} ms, ` +
       `resume ${result.resumeMs.toFixed(0)} ms, ` +
       `dropped ${result.dropped} (player-reported, approx.)`);
   history.unshift(result);
@@ -315,33 +402,51 @@ function render(now) {
   if (pending) {
     const elapsed = (now - pending.pressWall).toFixed(0);
     const stage = pending.seekedWall === null ? 'seeking' :
+        pending.shownWall === null ? 'waiting for playing' :
         pending.resumedWall === null ? 'waiting for playback' : 'measuring';
     lines.push(`transition #${pending.id} ${pending.from} -> ${pending.to}: ${stage} (${elapsed} ms)`);
     lines.push(``);
   }
-  lines.push(`#   dir         seek   resume  dropped`);
+  lines.push(`#   dir         seek   shown  resume  dropped`);
   if (history.length === 0) lines.push(`-`);
   for (const r of history) {
     lines.push(`${pad(r.id, 4)}${pad(`${r.from}->${r.to}`, 12)}` +
-               `${pad(r.seekMs.toFixed(0) + 'ms', 7)}${pad(r.resumeMs.toFixed(0) + 'ms', 8)}` +
-               `${r.dropped}`);
+               `${pad(r.seekMs.toFixed(0) + 'ms', 7)}${pad(r.shownMs.toFixed(0) + 'ms', 7)}` +
+               `${pad(r.resumeMs.toFixed(0) + 'ms', 8)}${r.dropped}`);
   }
   statsEl.textContent = lines.join('\n');
 }
 
-for (const ev of ['waiting', 'playing', 'stalled', 'pause', 'play']) {
+for (const ev of ['waiting', 'stalled', 'pause', 'play']) {
   video.addEventListener(ev, () => log(`event: ${ev}`));
 }
 video.addEventListener('seeked', () => {
   if (pending && pending.seekedWall === null) {
     pending.seekedWall = performance.now();
     log(`event: seeked (transition ${pending.id})`);
+    video.play().catch((e) => log(`play() rejected: ${e}`, true));
+  }
+});
+// Mirrors the TV page's onIsPlayingChange(true): show the player and hide the
+// thumbnails as soon as playback starts, independent of the list animation.
+video.addEventListener('playing', () => {
+  log('event: playing');
+  if (pending && pending.shownWall === null) {
+    pending.shownWall = performance.now();
+  }
+  if (!playbackReady) {
+    showPlayer();
+    setPlaybackReady(true);
   }
 });
 video.addEventListener('resize', () =>
     log(`event: resize ${video.videoWidth}x${video.videoHeight}`));
 video.addEventListener('error', () =>
     log(`event: error ${video.error && video.error.code} ${video.error && video.error.message}`, true));
+window.addEventListener('resize', () => {
+  renderItems();
+  layoutList(false);
+});
 
 document.addEventListener('keydown', (e) => {
   if (KEY_DOWN.has(e.key) || e.keyCode === KEYCODE_DOWN) {
