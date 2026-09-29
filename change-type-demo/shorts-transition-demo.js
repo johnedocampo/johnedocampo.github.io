@@ -18,11 +18,12 @@
 //                  type differs (default 1).
 //
 // Per-transition metrics (logged to the console, so they show up in logcat):
-//   seek         Down press -> 'seeked'.
-//   clock stall  Over the first WINDOW_MS of wall time after 'seeked', wall
-//                time minus media time elapsed.
-//   dropped      droppedVideoFrames delta from the press to the end of the
-//                window (player-reported, approximate).
+//   seek     Down press -> 'seeked'.
+//   resume   Down press -> currentTime first advances in the new short. The
+//            picture is frozen (or black) for about this long; logcat's
+//            "Render() hasn't been called" line is the exact measure.
+//   dropped  droppedVideoFrames delta from the press to RESULT_AFTER_MS later
+//            (player-reported, approximate).
 
 const params = new URLSearchParams(window.location.search);
 const useChangeType = params.get('changetype') !== '0';
@@ -32,13 +33,15 @@ const SDR = {
   url: 'sdr_vp9_p0_720p.webm',
   mime: 'video/webm; codecs="vp09.00.31.08.01.01.01.01.00"',
   label: 'SDR',
-  name: 'SDR (VP9 profile 0, bt709)',
+  title: 'Late night talk show moment',
+  detail: 'VP9 profile 0, bt709',
 };
 const HDR = {
   url: 'hdr_vp9_p2_720p.webm',
   mime: 'video/webm; codecs="vp09.02.31.10.01.09.16.09.00"',
   label: 'HDR',
-  name: 'HDR (VP9 profile 2, bt2020 / PQ)',
+  title: 'Backyard home video',
+  detail: 'VP9 profile 2, bt2020 / PQ',
 };
 const SHORTS = [SDR, HDR];
 
@@ -48,7 +51,11 @@ const SLOT_S = 100;
 const SEEK_EPSILON_S = 0.001;
 // Loop back once currentTime is this close to the short's end.
 const LOOP_MARGIN_S = 0.05;
-const WINDOW_MS = 2000;
+// currentTime must advance this far past the seek target to count as resumed.
+const RESUME_THRESHOLD_S = 0.05;
+const RESULT_AFTER_MS = 2000;
+const HISTORY_SIZE = 5;
+const TOAST_MS = 1500;
 const POLL_MS = 20;
 
 const KEY_DOWN = new Set(['ArrowDown', 'Down']);
@@ -56,22 +63,25 @@ const KEYCODE_DOWN = 40;
 
 const video = document.getElementById('video');
 const statsEl = document.getElementById('stats');
-const segmentEl = document.getElementById('segment');
-const logEl = document.getElementById('log');
+const titleEl = document.getElementById('title');
+const toastEl = document.getElementById('toast');
+const navDownEl = document.getElementById('nav-down');
 
 const t0 = performance.now();
+let toastTimer = null;
 function log(msg, warn) {
-  const line = document.createElement('div');
-  if (warn) line.className = 'warn';
   const wall = ((performance.now() - t0) / 1000).toFixed(3);
   const ct = video.currentTime.toFixed(3);
-  line.textContent = `[wall ${wall}s | ct ${ct}s] ${msg}`;
-  logEl.appendChild(line);
-  logEl.scrollTop = logEl.scrollHeight;
-  console.log(line.textContent);
+  console.log(`[wall ${wall}s | ct ${ct}s] ${msg}`);
+  if (warn) {
+    toastEl.textContent = msg;
+    toastEl.style.display = 'block';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { toastEl.style.display = 'none'; }, TOAST_MS);
+  }
 }
 
-function quality() {
+function droppedFrames() {
   if (video.getVideoPlaybackQuality) {
     return video.getVideoPlaybackQuality().droppedVideoFrames;
   }
@@ -129,15 +139,6 @@ function rangeEndAt(sb, t) {
   return null;
 }
 
-function formatRanges(sb) {
-  const out = [];
-  for (let i = 0; i < sb.buffered.length; i++) {
-    out.push(`[${sb.buffered.start(i).toFixed(2)}, ${sb.buffered.end(i).toFixed(2)}]`);
-  }
-  return out.join(' ') || '-';
-}
-
-let ms = null;
 let audioSb = null;
 let videoSb = null;
 let videoMime = null;
@@ -146,6 +147,7 @@ const shorts = [];        // index -> {format, start, end}
 let current = 0;
 let pending = null;       // In-flight transition measurement.
 let transitions = 0;
+const history = [];       // Most recent transition results, newest first.
 let sbQueue = Promise.resolve();
 
 // SourceBuffer operations run one at a time.
@@ -200,7 +202,7 @@ async function setup() {
   }
   log(`changeType() on mime change: ${useChangeType ? 'yes' : 'no'}`);
 
-  ms = new MediaSource();
+  const ms = new MediaSource();
   video.src = URL.createObjectURL(ms);
   await new Promise((r) => ms.addEventListener('sourceopen', r, { once: true }));
 
@@ -234,19 +236,46 @@ function goToNextShort() {
     id: transitions,
     from,
     to,
+    targetStart: target.start + SEEK_EPSILON_S,
     pressWall: performance.now(),
-    pressDropped: quality(),
+    pressDropped: droppedFrames(),
     seekedWall: null,
-    seekedCt: null,
+    resumedWall: null,
   };
   log(`Transition ${transitions}: short ${current} (${from}) -> short ${next} (${to})`);
 
   const previous = current;
   current = next;
-  video.currentTime = target.start + SEEK_EPSILON_S;
+  video.currentTime = pending.targetStart;
 
   enqueue(() => bufferShort(next + 1));
   enqueue(() => evictShort(previous));
+}
+
+function updatePending(now) {
+  const p = pending;
+  if (!p) return;
+  if (p.seekedWall !== null && p.resumedWall === null &&
+      video.currentTime >= p.targetStart + RESUME_THRESHOLD_S) {
+    p.resumedWall = now;
+  }
+  if (p.resumedWall === null || now - p.pressWall < RESULT_AFTER_MS) return;
+
+  const result = {
+    id: p.id,
+    from: p.from,
+    to: p.to,
+    seekMs: p.seekedWall - p.pressWall,
+    resumeMs: p.resumedWall - p.pressWall,
+    dropped: droppedFrames() - p.pressDropped,
+  };
+  log(`Transition ${result.id} (${result.from} -> ${result.to}) result: ` +
+      `seek ${result.seekMs.toFixed(0)} ms, ` +
+      `resume ${result.resumeMs.toFixed(0)} ms, ` +
+      `dropped ${result.dropped} (player-reported, approx.)`);
+  history.unshift(result);
+  history.length = Math.min(history.length, HISTORY_SIZE);
+  pending = null;
 }
 
 function poll() {
@@ -258,59 +287,45 @@ function poll() {
     video.currentTime = s.start;
   }
 
-  if (pending && pending.seekedWall !== null &&
-      now - pending.seekedWall >= WINDOW_MS) {
-    const p = pending;
-    const mediaMs = (video.currentTime - p.seekedCt) * 1000;
-    // Clamp: timer jitter can make this slightly negative.
-    const stallMs = Math.max(0, (now - p.seekedWall) - mediaMs);
-    p.result = {
-      seekMs: p.seekedWall - p.pressWall,
-      stallMs,
-      dropped: quality() - p.pressDropped,
-    };
-    log(`Transition ${p.id} (${p.from} -> ${p.to}) result: ` +
-        `seek ${p.result.seekMs.toFixed(0)} ms, ` +
-        `clock stall ${stallMs.toFixed(0)} ms, ` +
-        `dropped ${p.result.dropped} (player-reported, approx.)`);
-    lastResult = p;
-    pending = null;
-  }
-
-  render();
+  updatePending(now);
+  render(now);
 }
 
-let lastResult = null;
+function pad(text, width) {
+  return String(text).padEnd(width);
+}
 
-function render() {
+function render(now) {
   const s = shorts[current];
   if (s) {
-    segmentEl.textContent = `Short ${current}: ${s.format.name}`;
-    segmentEl.className = s.format.label === 'HDR' ? 'hdr' : 'sdr';
+    const badge = s.format.label === 'HDR' ? 'hdr' : 'sdr';
+    titleEl.innerHTML = `${s.format.title} #shorts` +
+        `<span class="badge ${badge}">${s.format.label}</span>`;
   }
-  const r = lastResult && lastResult.result;
+  navDownEl.style.opacity = shorts[current + 1] ? '1' : '0.4';
+
   const lines = [
-    `short           ${current} (${s ? s.format.label : '-'})`,
-    `short range     ${s ? `[${s.start.toFixed(3)}, ${s.end.toFixed(3)}]` : '-'}`,
-    `position        ${s ? (video.currentTime - s.start).toFixed(3) : '-'} s`,
-    `currentTime     ${video.currentTime.toFixed(3)} s`,
-    `readyState      ${video.readyState}`,
+    `short ${current} (${s ? s.format.label : '-'})  ${s ? s.format.detail : ''}`,
+    `position        ${s ? (video.currentTime - s.start).toFixed(2) : '-'} s`,
     `resolution      ${video.videoWidth}x${video.videoHeight}`,
     `changeType      ${useChangeType ? 'on' : 'off'}`,
-    `dropped total   ${quality()} (player-reported, approx.)`,
+    `next short      ${shorts[current + 1] ? 'ready' : 'buffering'}`,
     ``,
-    `-- buffered --`,
-    `video  ${videoSb ? formatRanges(videoSb) : '-'}`,
-    `audio  ${audioSb ? formatRanges(audioSb) : '-'}`,
-    ``,
-    `-- last transition --`,
-    `${lastResult ? `#${lastResult.id} ${lastResult.from} -> ${lastResult.to}` : '-'}`,
-    `seek            ${r ? r.seekMs.toFixed(0) + ' ms' : '-'}`,
-    `clock stall     ${r ? r.stallMs.toFixed(0) + ' ms' : '-'}`,
-    `dropped         ${r ? r.dropped + ' (approx.)' : '-'}`,
-    ``,
-    `Down: next short`,
   ];
+  if (pending) {
+    const elapsed = (now - pending.pressWall).toFixed(0);
+    const stage = pending.seekedWall === null ? 'seeking' :
+        pending.resumedWall === null ? 'waiting for playback' : 'measuring';
+    lines.push(`transition #${pending.id} ${pending.from} -> ${pending.to}: ${stage} (${elapsed} ms)`);
+    lines.push(``);
+  }
+  lines.push(`#   dir         seek   resume  dropped`);
+  if (history.length === 0) lines.push(`-`);
+  for (const r of history) {
+    lines.push(`${pad(r.id, 4)}${pad(`${r.from}->${r.to}`, 12)}` +
+               `${pad(r.seekMs.toFixed(0) + 'ms', 7)}${pad(r.resumeMs.toFixed(0) + 'ms', 8)}` +
+               `${r.dropped}`);
+  }
   statsEl.textContent = lines.join('\n');
 }
 
@@ -320,7 +335,6 @@ for (const ev of ['waiting', 'playing', 'stalled', 'pause', 'play']) {
 video.addEventListener('seeked', () => {
   if (pending && pending.seekedWall === null) {
     pending.seekedWall = performance.now();
-    pending.seekedCt = video.currentTime;
     log(`event: seeked (transition ${pending.id})`);
   }
 });
