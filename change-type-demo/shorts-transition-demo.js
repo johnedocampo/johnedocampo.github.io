@@ -11,11 +11,16 @@
 // Shorts behavior:
 //   - The current short loops back to its start when it ends.
 //   - Down arrow (or D-pad down) moves to the next short.
-//   - Shorts alternate SDR, HDR, SDR, HDR, ...
+//   - Shorts cycle through the formats in ?seq (default SDR, HDR, SDR, ...).
 //
 // URL params:
 //   ?changetype=0  Do not call changeType() before appending a short whose mime
 //                  type differs (default 1).
+//   ?seq=pq,hlg    Comma-separated format cycle; formats: sdr, pq, hlg,
+//                  pq4000 (PQ with 4000-nit mastering metadata)
+//                  (default sdr,pq). Short 0 always plays on a freshly
+//                  configured codec, so it is the visual reference for its
+//                  format.
 //
 // Transition UI (mirrors the YouTube TV ytlr Shorts page, default flags):
 //   On Down: pause the player, start loading the next short (seek), slide the
@@ -57,7 +62,31 @@ const HDR = {
   title: 'Game night reaction',
   detail: 'VP9 profile 2, bt2020 / PQ',
 };
-const SHORTS = [SDR, HDR];
+// Same content as HDR, converted from PQ to HLG.
+const HLG = {
+  url: 'hlg_vp9_p2_720p.webm',
+  mime: 'video/webm; codecs="vp09.02.31.10.01.09.18.09.00"',
+  poster: 'hdr_short_poster.jpg',
+  label: 'HLG',
+  title: 'Game night reaction (HLG)',
+  detail: 'VP9 profile 2, bt2020 / HLG',
+};
+// Same content as HDR, with 4000-nit mastering metadata and MaxCLL 4000/400.
+// Same mime type as HDR, so no changeType() between the two.
+const PQ4000 = {
+  url: 'hdr_4000nits_vp9_p2_720p.webm',
+  mime: 'video/webm; codecs="vp09.02.31.10.01.09.16.09.00"',
+  poster: 'hdr_short_poster.jpg',
+  label: 'PQ4000',
+  title: 'Game night reaction (4000 nits)',
+  detail: 'VP9 profile 2, bt2020 / PQ, 4000-nit mastering',
+};
+const FORMATS = { sdr: SDR, pq: HDR, hlg: HLG, pq4000: PQ4000 };
+const SHORTS = (params.get('seq') || 'sdr,pq')
+  .split(',')
+  .map((name) => FORMATS[name.trim().toLowerCase()])
+  .filter(Boolean);
+if (SHORTS.length === 0) SHORTS.push(SDR, HDR);
 
 // Matches PSEUDO_GAPLESS_OFFSET in the web player.
 const SLOT_S = 100;
@@ -214,7 +243,8 @@ async function evictShort(index) {
 }
 
 async function setup() {
-  for (const m of [AUDIO.mime, SDR.mime, HDR.mime]) {
+  log(`Format cycle: ${SHORTS.map((f) => f.label).join(' -> ')}`);
+  for (const m of new Set([AUDIO.mime, ...SHORTS.map((f) => f.mime)])) {
     log(`isTypeSupported(${m}) = ${MediaSource.isTypeSupported(m)}`);
   }
   log(`changeType() on mime change: ${useChangeType ? 'yes' : 'no'}`);
@@ -223,7 +253,7 @@ async function setup() {
   video.src = URL.createObjectURL(ms);
   await new Promise((r) => ms.addEventListener('sourceopen', r, { once: true }));
 
-  const urls = [AUDIO.url, ...SHORTS.map((f) => f.url)];
+  const urls = [...new Set([AUDIO.url, ...SHORTS.map((f) => f.url)])];
   const buffers = await Promise.all(urls.map(fetchBuffer));
   urls.forEach((u, i) => media.set(u, buffers[i]));
   log('Fetched all media.');
@@ -385,7 +415,7 @@ function pad(text, width) {
 function render(now) {
   const s = shorts[current];
   if (s) {
-    const badge = s.format.label === 'HDR' ? 'hdr' : 'sdr';
+    const badge = s.format === SDR ? 'sdr' : 'hdr';
     titleEl.innerHTML = `${s.format.title} #shorts` +
         `<span class="badge ${badge}">${s.format.label}</span>`;
   }
